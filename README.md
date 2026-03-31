@@ -27,5 +27,5 @@ The script automatically creates a virtual environment and installs the required
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/educational-keylogger.git
-   cd educational-keylogger
+   git clone https://github.com/sdeiturralde/Keylogger.git
+   cd Keylogger
