@@ -1,5 +1,5 @@
 #######################################
-# #       Importar Librerías        # #
+# #         Import Libraries        # #
 #######################################
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -16,18 +16,18 @@ LOG_FILE = "received_logs.txt"
 
 class LogHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        # Lee el largo del contenido
+        # Reads the size of the content
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
 
-        # Anexar la data recibida al archivo
+        # Append the received data to the file
         with open(LOG_FILE, "ab") as f:   # "ab" = append binary
             f.write(post_data)
-            f.write(b"\n--- FIN DE LA SESION ---\n\n")  # Separador
+            f.write(b"\n--- END OF SESSION ---\n\n")  # Separator
 
-        print(f"Se recibieron {content_length} bytes, añadidos a {LOG_FILE}")
+        print(f"Received {content_length} bytes, added to {LOG_FILE}")
 
-        # Enviar un 200 OK response de vuelta al script (por al librería "requests")
+        # Sends a 200 OK response back to the script
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
@@ -41,5 +41,5 @@ class LogHandler(BaseHTTPRequestHandler):
 #######################################
 
 server = HTTPServer(('0.0.0.0', 4466), LogHandler)
-print(f"Escuchando en http://0.0.0.0:4466, guardando logs a {LOG_FILE}")
+print(f"Listening on http://0.0.0.0:4466, saving logs in {LOG_FILE}")
 server.serve_forever()
